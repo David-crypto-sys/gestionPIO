@@ -33,13 +33,8 @@ const ProductSchema = new mongoose.Schema({
   // Usuario que creó el producto (referencia al modelo de Usuario)
   usuario: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  visiblePara: [{
-    type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }],
+  },
   // Fecha de creación del producto
   createdAt: {
     type: Date,

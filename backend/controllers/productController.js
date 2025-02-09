@@ -1,81 +1,96 @@
+// controllers/productController.js
 const Product = require('../models/Product');
-const User = require('../models/User');
 
+// Crear un nuevo producto
 exports.crearProducto = async (req, res) => {
   try {
-    const nuevoProducto = new Product(req.body);
-    await nuevoProducto.save();
-    res.status(201).json(nuevoProducto);
+    // Extraer datos del cuerpo de la solicitud
+    const { nombre, descripcion, precio, categoria, cantidad } = req.body;
+
+    // Crear nuevo producto
+    const nuevoProducto = new Product({
+      nombre,
+      descripcion,
+      precio,
+      categoria,
+      cantidad,
+      usuario: req.usuario.id  // ID del usuario que lo crea
+    });
+
+    // Guardar producto en la base de datos
+    const producto = await nuevoProducto.save();
+
+    res.json(producto);
   } catch (error) {
-    res.status(500).json({ msg: 'Error al crear producto' });
+    console.error(error);
+    res.status(500).json({ msg: 'Error al crear el producto' });
   }
 };
 
+// Obtener todos los productos
 exports.obtenerProductos = async (req, res) => {
   try {
-    const usuario = await User.findById(req.usuario.id);
-    let productos;
-
-    if (usuario.role === 'admin') {
-      productos = await Product.find();
-    } else {
-      productos = await Product.find({
-        $or: [
-          { usuario: req.usuario.id },
-          { visiblePara: req.usuario.id }
-        ]
-      });
-    }
+    // Buscar productos del usuario autenticado
+    const productos = await Product.find({ usuario: req.usuario.id });
     res.json(productos);
   } catch (error) {
-    res.status(500).json({ msg: 'Error al obtener productos' });
+    console.error(error);
+    res.status(500).json({ msg: 'Error al obtener los productos' });
   }
 };
 
+// Actualizar un producto
 exports.actualizarProducto = async (req, res) => {
   try {
-    const productoActualizado = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(productoActualizado);
-  } catch (error) {
-    res.status(500).json({ msg: 'Error al actualizar producto' });
-  }
-};
+    const { nombre, descripcion, precio, categoria, cantidad } = req.body;
 
-exports.eliminarProducto = async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    res.json({ msg: 'Producto eliminado' });
-  } catch (error) {
-    res.status(500).json({ msg: 'Error al eliminar producto' });
-  }
-};
-
-exports.compartirProducto = async (req, res) => {
-  try {
-    const { productoId, usuarioEmail } = req.body;
-    const admin = await User.findById(req.usuario.id);
-
-    if (admin.role !== 'admin') {
-      return res.status(403).json({ msg: 'No autorizado' });
-    }
-
-    const usuario = await User.findOne({ email: usuarioEmail });
-    if (!usuario) {
-      return res.status(404).json({ msg: 'Usuario no encontrado' });
-    }
-
-    const producto = await Product.findById(productoId);
+    // Verificar si el producto existe
+    let producto = await Product.findById(req.params.id);
+    
     if (!producto) {
       return res.status(404).json({ msg: 'Producto no encontrado' });
     }
 
-    if (!producto.visiblePara.includes(usuario._id)) {
-      producto.visiblePara.push(usuario._id);
-      await producto.save();
+    // Verificar que el usuario sea el dueño del producto
+    if (producto.usuario.toString() !== req.usuario.id) {
+      return res.status(401).json({ msg: 'No autorizado' });
     }
 
-    res.json({ msg: 'Producto compartido exitosamente' });
+    // Actualizar producto
+    producto = await Product.findByIdAndUpdate(
+      req.params.id, 
+      { nombre, descripcion, precio, categoria, cantidad },
+      { new: true }  // Devuelve el producto actualizado
+    );
+
+    res.json(producto);
   } catch (error) {
-    res.status(500).json({ msg: 'Error al compartir producto' });
+    console.error(error);
+    res.status(500).json({ msg: 'Error al actualizar el producto' });
+  }
+};
+
+// Eliminar un producto
+exports.eliminarProducto = async (req, res) => {
+  try {
+    // Verificar si el producto existe
+    let producto = await Product.findById(req.params.id);
+    
+    if (!producto) {
+      return res.status(404).json({ msg: 'Producto no encontrado' });
+    }
+
+    // Verificar que el usuario sea el dueño del producto
+    if (producto.usuario.toString() !== req.usuario.id) {
+      return res.status(401).json({ msg: 'No autorizado' });
+    }
+
+    // Eliminar producto
+    await Product.findByIdAndDelete(req.params.id);
+
+    res.json({ msg: 'Producto eliminado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: 'Error al eliminar el producto' });
   }
 };

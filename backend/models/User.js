@@ -11,6 +11,7 @@ const UserSchema = new mongoose.Schema({
     trim: true,         // Elimina espacios en blanco
     lowercase: true     // Convierte a minúsculas
   },
+  // Campo de contraseña
   password: {
     type: String,
     required: true,
